@@ -139,6 +139,7 @@ typedef struct nrf24l01_config{
     GPIO_TypeDef *irq_port, *ce_port, *csn_port;
     uint16_t irq_pin, ce_pin, csn_pin;
     SPI_HandleTypeDef* spi;
+    TIM_HandleTypeDef* timer; // use to generate delay in us precision
     NRF24L01_RF_DATA_RATE rf_data_rate;
     uint8_t rf_freq; // 0 = 2.400Ghz, max = 125;
     NRF24L01_OUTPUT_POWER rf_output_power;
@@ -156,6 +157,14 @@ typedef struct nrf24l01_config{
 typedef struct nrf24l01_dev{
     NRF24L01_CONFIG *config;
 }NRF24L01_DEV;
+
+/**
+ * @brief generate delay in us
+ * @param dev pointer points to nrf24l01 struct
+ * @param delay amount of time
+ * @return None
+ */
+void nrf24l01_Delay(NRF24L01_DEV * dev,uint16_t delay);
 
 /**
  * @brief check if a number is error number or not

@@ -7,18 +7,7 @@
 #include "string.h"
 
 uint8_t ErrorCheck(uint8_t n){
-  switch (n) {
-    case BUFFER_SIZE_LIMIT:
-    case TIMEOUT:
-    case SPI_ERROR:
-    case REGISTER_ERROR:
-    case REGISTER_LENGTH:
-    case NULL_POINTER:
-    case SPI_FAIL:
-      return 1;
-    default:
-      return 0;
-  }
+  return (n >= 0xF9U);
 }
 void nrf24l01_Select(NRF24L01_DEV *dev){
   HAL_GPIO_WritePin(dev->config->csn_port, dev->config->csn_pin, GPIO_PIN_RESET);
@@ -176,6 +165,9 @@ void nrf24l01_init(NRF24L01_DEV *dev){
   nrf24l01_SetRXPayloadLength(dev,pipe3,dev->config->payload_length);
   nrf24l01_SetRXPayloadLength(dev,pipe4,dev->config->payload_length);
   nrf24l01_SetRXPayloadLength(dev,pipe5,dev->config->payload_length);
+
+  // start timer
+  HAL_TIM_Base_Start(dev->config->timer);
 }
 
 void nrf24l01_SetChannel(NRF24L01_DEV *dev, uint8_t channel){
@@ -441,31 +433,26 @@ uint8_t nrf24l01_FlushTX(NRF24L01_DEV *dev){
   return status;
 }
 
+void nrf24l01_Delay(NRF24L01_DEV * dev,uint16_t delay){
+  __HAL_TIM_SET_COUNTER(dev->config->timer, 0) ;
+  while (__HAL_TIM_GET_COUNTER(dev->config->timer) < delay);
+}
+
 uint8_t nrf24l01_Transmit(NRF24L01_DEV *dev, uint8_t *pData, uint8_t length){
   uint8_t status = 0;
   // check if tx fifo is full
   // if there is no vacant slot in tx fifo, flush them
   if (nrf24l01_IsTXFull(dev)) nrf24l01_FlushTX(dev);
 
-  // check if PRIM_RX is set high
-  // if PRIM_RX is high, can't perform transmission
-  // payload will be discarded
-  uint8_t config = 0;
-  status = nrf24l01_ReadRegister(dev, CONFIG, &config, 1);
-  if (!(config ^ (1 << PRIM_RX))) return 0xff;
-
   // check if any error occurs
   if (ErrorCheck(status)) return status;
 
   // write tx payload to tx fifo
-  status = nrf24l01_WritePayload(dev, pData, length);
-
-  // check if any error occurs
-  if (ErrorCheck(status)) return status;
+  nrf24l01_WritePayload(dev, pData, length);
 
   // perform transmission
   nrf24l01_Enable(dev);
-  HAL_Delay(1);
+  nrf24l01_Delay(dev, 11);
   nrf24l01_Disable(dev);
   return nrf24l01_GetStatus(dev);
 }
