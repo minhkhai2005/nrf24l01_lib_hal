@@ -672,6 +672,10 @@ uint8_t nrf24l01_Receive(NRF24L01_DEV *dev){
   config |= (1 << PRIM_RX) | (1 << PWR_UP);
   status = nrf24l01_WriteRegister(dev, CONFIG, &config, 1);
 
+  // check if RX FIFO is FULL
+  // if true, then flush RX FIFO
+  if (nrf24l01_IsRXFull(dev)) nrf24l01_FlushRX(dev);
+
   // enable device
   nrf24l01_Enable(dev);
   return status;
